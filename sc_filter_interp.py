@@ -23,9 +23,9 @@ class SCFilter:
         Args:
             fs (float): Sample rate of input signals to be filtered.
             n_input_samps (int): Length of input signal vectors.
-            fc (ndarray): Array of bandpass center frequencies. One for each filter channel. Use CHIP_DFLT_FC for the default
-                ERB spacing.
-            fbw (ndarray): Filter bandwidths. One for each filter channel. Either fbw or k must be specified as
+            fc (ndarray): Array of bandpass center frequencies (Hz). One for each filter channel. Use CHIP_DFLT_FC for the
+                default ERB spacing.
+            fbw (ndarray): Filter bandwidths (Hz). One for each filter channel. Either fbw or k must be specified as
                 as they each uniquely determine the bandwidth of the filter channels. Use CHIP_DFLT_FBW for the default filter
                 bandwidths.
             k (ndarray, optional): Hardware parameter that sets the number of unit caps using in each N-path filter channel.
