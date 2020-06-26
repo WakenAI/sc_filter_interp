@@ -1,6 +1,9 @@
 # sc_filter_interp
 WakenAI switched-cap filter model based on numpy and using interpolation.
 
+___
+## Quickstart
+
 
 ```python
 import numpy as np
@@ -9,9 +12,6 @@ import seaborn as sns
 sns.set()
 import sc_filter_interp as sfi
 ```
-
-___
-## Quickstart
 
 
 ```python
@@ -40,9 +40,9 @@ plt.show()
 This code models a bank of demodulated bandpass filters specified by their center frequencies (fc) and bandwidths (fbw). We can approximate a given channel as shown in the block diagram below.
 
 <!---
-![Approximate model for a singel channel.](img/approx_channel.svg)
+![Approximate model for a singel channel.](demo_files/approx_channel.svg)
 -->
-<div style="text-align:center"><img src="img/approx_channel.svg" width="700"></div>  
+<div style="text-align:center"><img src="demo_files/approx_channel.svg" width="700"></div>  
 
   
 Effectively, a signal is bandpass filtered and then demodulated (multiplied by a cos), where the demodulation shifts the filtered chunk of spectra centered at fc, down to 0 Hz (i.e., baseband). In reality, the signal is not multiplied by a perfect sine wave, thus aliases end up in other filter channel outputs. The center frequency and bandwidth are related by fbw = 3*fc/(np.pi*4*k), where k is a programmable chip hardware parameter for each channel. In the demo chip, k is an integer between 2 to 8. However, for simulation pruposes any this code allows non-integer k, and thus arbitrary fbw.
