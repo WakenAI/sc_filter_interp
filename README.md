@@ -30,10 +30,6 @@ plt.figure()
 plt.show()
 ```
 
-
-![svg](demo_files/demo_3_0.svg)
-
-
 ---
 ## Theory
 
@@ -102,24 +98,7 @@ The output is a 10 Hz tone because the bandpass filter was centered at 300 Hz, a
 
 What would happen if the input signal was a tone of 300 Hz - the same as the center frequency of the filter?
 
-
-```python
-signal = np.cos(2*np.pi*(300.)*t_vec)
-
-output, t_vec_out = scfilter(signal)
-
-plt.figure()
-plt.plot(t_vec_out[0], output[0])
-plt.xlabel('Time (s)')
-plt.ylabel('Amplitude')
-plt.show()
-```
-
-
-![svg](demo_files/demo_11_0.svg)
-
-
-The output signal is "DC" - a 0 Hz tone, since 300 Hz - 300 Hz = 0 Hz. There is high frequency content, but the average value is 0 Hz. Note that the output also ramps up to the value. This is due to the causality of the filter and the assumption that the signal before time t = 0, is 0.
+The output signal is "DC" - a 0 Hz tone, since 300 Hz - 300 Hz = 0 Hz. There is high frequency content, but the dominant signal is 0 Hz. Note that the output also ramps up to the value. This is due to the causality of the filter and the assumption that the signal before time t = 0, is 0.
 
 Recall that we because the demodulation is not perfect, signal content can end up in other filter channels. Consider the case where we have two filter channels: A 300 Hz channel, and a subharmonic, 300 Hz / 3 = 100 Hz.  
 
@@ -148,7 +127,7 @@ plt.show()
 ```
 
 
-![svg](demo_files/demo_13_0.svg)
+![svg](demo_files/demo_12_0.svg)
 
 
 In this case, we see that a smaller componenent of the 10 Hz tone still appears at the output of this channel.
@@ -194,5 +173,5 @@ plt.show()
     
 
 
-![svg](demo_files/demo_15_1.svg)
+![svg](demo_files/demo_14_1.svg)
 
