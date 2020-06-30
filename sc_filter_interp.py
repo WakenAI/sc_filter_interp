@@ -3,19 +3,23 @@ from scipy.interpolate import interp1d
 from scipy.signal import lfilter
 
 
-CHIP_DFLT_FC = np.array([29.51388889,   49.18981481,   80.49242424,   118.05555556,   160.98484848, \
-    196.75925926,  265.625,       321.96969697,  379.46428571,  429.29292929, \
-    531.25,        643.93939394,  708.33333333,  787.03703704,  965.90909091, \
-    1062.5,        1287.87878788, 1416.66666667, 1574.07407407, 1770.83333333, \
-    2125.,         2361.11111111, 2656.25,       3035.71428571, 3541.66666667, \
-    3863.63636364, 4250.,         4722.22222222, 5312.5,        6071.42857143, \
+CHIP_DFLT_FC = np.array([29.51388889,   49.18981481,   80.49242424,   118.05555556,   160.98484848,
+    196.75925926,  265.625,       321.96969697,  379.46428571,  429.29292929,
+    531.25,        643.93939394,  708.33333333,  787.03703704,  965.90909091,
+    1062.5,        1287.87878788, 1416.66666667, 1574.07407407, 1770.83333333,
+    2125.,         2361.11111111, 2656.25,       3035.71428571, 3541.66666667,
+    3863.63636364, 4250.,         4722.22222222, 5312.5,        6071.42857143,
     7083.33333333, 8500.])
 
 CHIP_DFLT_K = np.array([2, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8])
 
 CHIP_DFLT_FBW = 3*CHIP_DFLT_FC/np.pi*4*CHIP_DFLT_K
 
+CHIP_DFLT_FBB = 15e3*4.2e-12/(2*np.pi*8*4.2e-12)
+
 class SCFilter:
+
+    # TODO: make over_samp a vector so different over_sampling values can be used depending on fc.
 
     def __init__(self, fs, n_input_samps, fc=CHIP_DFLT_FC, fbw=CHIP_DFLT_FBW, k=None, over_samp=10):
         """Waken-AI switched-capacitor analog front-end model using interpolation for sampling.
@@ -23,9 +27,9 @@ class SCFilter:
         Args:
             fs (float): Sample rate of input signals to be filtered.
             n_input_samps (int): Length of input signal vectors.
-            fc (ndarray): Array of bandpass center frequencies (Hz). One for each filter channel. Use CHIP_DFLT_FC for the
-                default ERB spacing.
-            fbw (ndarray): Filter bandwidths (Hz). One for each filter channel. Either fbw or k must be specified as
+            fc (ndarray, optional): Array of bandpass center frequencies (Hz). One for each filter channel. Use CHIP_DFLT_FC
+            for the default ERB spacing.
+            fbw (ndarray, optional): Filter bandwidths (Hz). One for each filter channel. Either fbw or k must be specified as
                 as they each uniquely determine the bandwidth of the filter channels. Use CHIP_DFLT_FBW for the default filter
                 bandwidths.
             k (ndarray, optional): Hardware parameter that sets the number of unit caps using in each N-path filter channel.
@@ -45,6 +49,9 @@ class SCFilter:
             chip implementation, k is an integer between 1 to 8 for each channel. A k and an fc uniquely define an fbw, 
             so if k is specified, it overides the value for fbw (fbw can be filled with dummy values in this case). The
             relationship is: fbw = 3*fc/(np.pi*4*k)
+
+        Note:
+            fbb is an approximation of 
 
         Example usage:
 
@@ -71,6 +78,8 @@ class SCFilter:
         Csc = Cu
         Cbb = 8*Cu
         Rbb = 1./(15e3*Cu)
+
+        
 
         # the bandwidth is controlled by fc and Csb = k*Cu
         # k = 3*fc/(np.pi*4*fbw)
@@ -175,13 +184,19 @@ class SCFilter:
         self._calc_lengths_templates()
         
 
-    def __call__(self, signal):
+    def __call__(self, signal, out_type='samples'):
         """Filter signal through SCFilter filter bank.
 
         Args:
             signal (ndarray): 1-D array signal input with sampling rate, fs as specified during 
                 initialization. The signal need not be n_input_samps long, but this results in 
                 some extra computation.
+            out_type ({'raw', 'samples'}): If 'samples' returns the output of each channel as if sampled by
+                an ADC in round-robin fasion (one channel at a time) using the default parameters of
+                SCFilter.sample_sig_chans(sig_chans, f_chan=1000., t_start=0., num_samp_kind='max-same', interp_kind='linear', split=0.5)
+                If 'raw' returns the up-sampled analog approximation for each channel dictated by the over_samp
+                value set during initialization. Defaults to 'samples' which samples at 1 kHz and returns the
+                same number of samples for each channel. 
 
         Returns:
             ndarray: 2-D array where each row is an output signal corresponding to a filter channel
@@ -189,14 +204,24 @@ class SCFilter:
                 Note that even if there is only a single filter channel, a 2-D array is returned with
                 shape (1, len(signal)). 
         """
+
+        # check for correct out_type parameter
+        out_types = {'raw', 'samples'}
+        if out_type not in out_types:
+            raise ValueError(f'out_type must be one of {out_types}')
+        
         # check if length of signal matches what we expect. If not, update templates accordingly.
         if len(signal) != self._n_input_samps:
             self._n_input_samps = len(signal)
             self._calc_lengths_templates()
 
-        output, t_vec_out = self._filter_signal(signal)
+        sig_chans, t_vec_out = self._filter_signal(signal)
 
-        return output, t_vec_out
+        if out_type == 'samples':
+            sig_chans, t_vec_out = \
+                self.sample_sig_chans(sig_chans, f_chan=1000., t_start=0., num_samp_kind='max-same', interp_kind='linear')
+
+        return sig_chans, t_vec_out
 
 
     def _calc_lengths_templates(self):
@@ -521,3 +546,86 @@ class SCFilter:
                 in zip(state_out_samps, samps, self._out_filter_templates, self._state_idx, self._num_samps_fc)])
 
         return output, self._t_vec_out
+
+
+    def calc_chan_energies(self, sig_chans):
+        """Calculate the energies, defined as the mean-square value of each signal channel.
+
+        Args:
+            sig_chans (array_like): An array where each element is a ndarray representing samples from each filter channel.
+
+        Returns:
+            [array_like]: An array of the same length as sig_chans holding the mean square value of each channel.
+        """
+        # mean square value of each channel
+        return np.array([np.mean(np.power(chan, 2)) for chan in sig_chans])
+
+    def sample_sig_chans(self, sig_chans, f_chan=1000., t_start=0., num_samp_kind='max-same', interp_kind='linear', split=0.5):
+        """Mimic ADC sampling of analog filter channels in round-robin (one channel at a time) sampling.
+
+        Args:
+            sig_chans (array_like): An array where each element is a ndarray representing samples from each filter channel.
+            f_chan (float, optional): Sampling rate per channel in Hz. Because sampling is round-robin starting at sig_chans[0], 
+                the effective sampling rate for the whole filter-bank is len(sig_chans)*f_chan. Defaults to 1000..
+            t_start (float, optional): Starting point in waveform to begin sampling. Defaults to 0..
+            num_samp_kind (str, optional): {'max-same', 'max'} If 'max-same', returns the maximum number of samples possible
+                such that each channel has the same number of samples. If a channels is able to be sampled more than this number, 
+                the last n samples are taken. If 'max', returns the maximum number of samples possible per channel. In this case, 
+                its possible that channels may have differing number of samples due to the round-robin sampling. Defaults to 'max-same'.
+            interp_kind (str, optional): {'linear', 'quadratic', 'cubic', 'mixed'}. Samples are interpolated based on the
+                amplitude and time vectors for each channel. 'linear' is the fastest to compute, but has the the highest error.
+                If 'mixed', then the first n number of channels are interpolated with cubic splines, and the remaining channels
+                are sampled via linear interpolation. The proportion is dictated by the split parameter. The lower frequency channels
+                are typically the more error prone and thus should use cubic interpolation due to their output sample rate being
+                effectively lower. The higher frequency channels have a higher sampling rate and thus have less error despite using
+                linear interpolation. This strikes a balance between computational accuracy and speed. This implicitely assumes
+                the fc vector is sorted from lowest to highest frequency. Defaults to 'linear'.
+            split (float, optional): Used only if interp_kind='mixed'. First np.round(split*len(sig_chans)) channels are sampled
+                with cubic spline interpolation, and the remaining channels are sampled with linear interpolation.Defaults to 0.5.
+
+        Raises:
+            ValueError: Invalid value if num_samp_kind != {'max-same', 'max'}
+            ValueError: Invalid value if interp_types != {'linear', 'quadratic', 'cubic', 'mixed'}
+
+        Returns:
+            [array_like]: Array of same length as sig_chans containing ndarrays with samples taken at the f_chan rate.
+        """
+
+        num_samps_types = {'max-same', 'max'}
+        if num_samp_kind not in num_samps_types:
+            raise ValueError(f'num_samp_kind must be one of {num_samps_types}')
+
+        interp_types = {'linear', 'quadratic', 'cubic', 'mixed'}
+        if interp_kind not in interp_types:
+            raise ValueError(f'interp_kind must be one of {interp_types}')
+        else:
+           if interp_kind in {'linear', 'quadratic', 'cubic'}:
+               kind = interp_kind 
+        
+        # number of sampling points for each channel
+        num_chan_samps = [int(np.floor((t[-1]-t[0]-t_start)*f_chan)) for t in self._t_vec_out]
+        
+        # get time vector sampling points assuming round robin sampling at num_chan*f_chan rate
+        t_chan_samps = [np.linspace(t_start + chan_ind/f_chan, n_samps/f_chan, n_samps) for chan_ind, n_samps in enumerate(num_chan_samps)]
+
+        # remove sample points if necessary
+        if num_samp_kind == 'max-same':
+            max_samps = np.min(num_chan_samps)
+            for ind in range(len(t_chan_samps)):
+                t_chan_samps[ind] = t_chan_samps[ind][-max_samps:]
+
+        chan_samps = []
+        if interp_kind == 'mixed':
+            num_cube = np.round(len(sig_chans)*split)
+            for ind in range(int(num_cube)):
+                sig_samples = interp1d(self._t_vec_out[ind], sig_chans[ind], kind='cubic')
+                chan_samps.append(sig_samples(t_chan_samps[ind]))
+            for ind in np.arange(num_cube, len(sig_chans), dtype=int):
+                sig_samples = interp1d(self._t_vec_out[ind], sig_chans[ind], kind='linear')
+                chan_samps.append(sig_samples(t_chan_samps[ind]))
+        else:
+            for t_chan, sig_chan, t_interp_pts in zip(self._t_vec_out, sig_chans, t_chan_samps):
+                sig_samples = interp1d(t_chan, sig_chan, kind=kind, assume_sorted=True)
+                chan_samps.append(sig_samples(t_interp_pts))
+
+        return chan_samps, t_chan_samps
