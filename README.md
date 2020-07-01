@@ -41,7 +41,7 @@ This code models a bank of demodulated bandpass filters specified by their cente
 <div style="text-align:center"><img src="demo_files/approx_channel.svg" width="700"></div>  
 
   
-Effectively, a signal is bandpass filtered and then demodulated (multiplied by a cos), where the demodulation shifts the filtered chunk of spectra centered at fc, down to 0 Hz (i.e., baseband). In reality, the signal is not multiplied by a perfect sine wave, thus aliases end up in other filter channel outputs. The center frequency and bandwidth are related by fbw = 3*fc/(np.pi*4*k), where k is a programmable chip hardware parameter for each channel. In the demo chip, k is an integer between 2 to 8. However, for simulation pruposes any this code allows non-integer k, and thus arbitrary fbw.
+Effectively, a signal is bandpass filtered and then demodulated (multiplied by a cos), where the demodulation shifts the filtered chunk of spectra centered at fc, down to 0 Hz (i.e., baseband). In reality, the signal is not multiplied by a perfect sine wave, thus aliases end up in other filter channel outputs. The center frequency and bandwidth are related by `fbw = 3*fc/(np.pi*4*k)`, where k is a programmable chip hardware parameter for each channel. In the demo chip, k is an integer between 2 to 8. However, for simulation pruposes any this code allows non-integer k, and thus arbitrary fbw.
 
 As an example, create a single tone at 310 Hz, sampled at 16 kHz:
 
@@ -80,7 +80,7 @@ Filter the signal and plot the output.
 
 
 ```python
-output, t_vec_out = scfilter(signal)
+output, t_vec_out = scfilter(signal, out_type='raw')
 
 # output and corresponding time vector come output as array of arrays
 plt.figure()
@@ -115,7 +115,7 @@ fbw = np.array([20., 20.])
 
 scfilter = sfi.SCFilter(fs, len(signal), fc=fc, fbw=fbw)
 
-output, t_vec_out = scfilter(signal)
+output, t_vec_out = scfilter(signal, out_type='raw')
 
 plt.figure()
 plt.plot(t_vec_out[0], output[0])
@@ -130,14 +130,14 @@ plt.show()
 ![svg](demo_files/demo_12_0.svg)
 
 
-In this case, we see that a smaller componenent of the 10 Hz tone still appears at the output of this channel.
+In this case, we see that a smaller componenent of the 10 Hz tone still appears at the output of this channel. Despite these aliases in different channels, the hypothesis is, that for inference based systems, these types of non-idealities have little effect on accuracy when the non-idealities are accounted for during training.
 
 Using the WakenAI chip default center frequencies and bandwidths (32 channels), and the 310 Hz tone, we see the following output
 
 
 ```python
 scfilter = sfi.SCFilter(fs, len(t_vec), fc=sfi.CHIP_DFLT_FC, fbw=sfi.CHIP_DFLT_FBW)
-output, t_vec_out = scfilter(signal)
+output, t_vec_out = scfilter(signal, out_type='raw')
 
 print('Chip default channel center frequencies:')
 print(sfi.CHIP_DFLT_FC, '\n')
@@ -174,4 +174,105 @@ plt.show()
 
 
 ![svg](demo_files/demo_14_1.svg)
+
+
+---
+## Output Usage
+
+The examples above use the `out_type='raw'` option when filtering. These mimic an analog signal via upsampled channel outputs. The sampling rate varies for each channel and is `sample_rate = 12*fc*over_samp`. Due to the varing sample rates, the output lengths of the channel vectors holding the samples also varies.
+
+In an actual system, the output of each channel is muxed to a single ADC as shown in the diagram below. One sample is taken from the first channel, a second sample from the second channel, and so on. The default per-channel sample rate is 1 kHz (recall the output bandwidth is approximatly `fbb = 300 Hz`).
+
+<div style="text-align:center"><img src="demo_files/fbank_adc.png" width="400"></div>
+
+The default `__call__` method of SCFilter is `out_type='samples'` which mimics the situation in the diagram with a single ADC and a per-channel sample-rate of 1 kHz. To do this sampling, the `__call__` method calls the `sample_sig_chans` method using the `num_samp_kind='max-same'` option which returns the maximum number of samples per channel possible with the same number of samples per channel. The corresponding sampling time points for each channel are also returned.
+
+
+```python
+# test signal
+fs = 16000.
+fsig = 310.
+t_vec = np.arange(0, 1, 1/fs)
+signal = np.cos(2*np.pi*(fsig)*t_vec)
+
+# filter bank object
+scfilter = sfi.SCFilter(fs, len(t_vec))
+
+# raw
+output, t_vec_out = scfilter(signal, out_type='raw')
+print(f'With raw signal, the number of samples per channel is:\n {[len(raw_vec) for raw_vec in output]}\n')
+
+# sampled with max number of samples in each channel possible (1 kHz)
+output, t_vec_out = scfilter(signal, out_type='raw')
+output, t_vec_out = scfilter.sample_sig_chans(output, num_samp_kind='max')
+print(f'With sampled signal (num_samp_kind=\'max\'), the number of samples per channel is:\n {[len(raw_vec) for raw_vec in output]}')
+
+# sampled channels, same number of samples per channel (default, 1 kHz)
+output, t_vec_out = scfilter(signal, out_type='samples')
+print(f'With sampled signal (num_samp_kind=\'max_same\'), the number of samples per channel is:\n {[len(raw_vec) for raw_vec in output]}')
+```
+
+    With raw signal, the number of samples per channel is:
+     [3620, 6020, 9740, 14180, 19340, 23660, 31940, 38660, 45620, 51620, 63860, 77300, 85100, 94460, 115940, 127580, 154580, 170060, 188900, 212540, 255020, 283340, 318740, 364340, 425060, 463700, 510020, 566660, 637580, 728540, 849980, 1020020]
+    
+    With sampled signal (num_samp_kind='max'), the number of samples per channel is:
+     [1021, 1019, 1008, 1000, 1001, 1002, 1002, 1000, 1001, 1002, 1001, 1000, 1001, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 999, 1000, 1000, 1000, 1000, 999, 1000, 999, 999, 1000]
+    With sampled signal (num_samp_kind='max_same'), the number of samples per channel is:
+     [999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999, 999]
+    
+
+In order to mimic sampling of the output channels, the samp_sig_chans method uses interpolation controlled by the interp_kind parameter. The default is linear interpolation: interp_kind='linear'. Other options include {'quadratic', 'cubic'} splines. These spline options are more accurate, but result in longer simulation times. Depending on needs, the default linear interpolation is likely sufficient.
+
+
+```python
+# get raw samples so we can demonstrate the samp_sig_chans method
+output, t_vec_out = scfilter(signal, out_type='raw')
+```
+
+
+```python
+# default using linear interpolation
+# same as:
+# output, t_vec_out = scfilter(signal)
+%timeit out_sampled, t_sampled = scfilter.sample_sig_chans(output, interp_kind='linear')
+```
+
+    115 ms ± 15.9 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
+    
+
+
+```python
+# using cubic spline interpolation
+%timeit out_sampled, t_sampled = scfilter.sample_sig_chans(output, interp_kind='cubic')
+```
+
+    2.04 s ± 98.9 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    
+
+The model can also be used to make something similar to a power spectrum or fft. The method `calc_chan_energies` does this by computing the mean-square values of each of the channels. This essentially tells you the signal energy in each channel. This function may be used to compute, for example a spectrogram. Recall that due to aliasing artifacts, even if a single tone is present in one band, it will show up in other bands. The energy may be computed on the raw signal or on the sampled signal.
+
+
+```python
+# test signal
+fs = 16000.
+fsig = 310.
+t_vec = np.arange(0, 1, 1/fs)
+signal = np.cos(2*np.pi*(fsig)*t_vec)
+
+# filter bank object
+scfilter = sfi.SCFilter(fs, len(t_vec))
+output, t_vec_out = scfilter(signal)
+
+# compute the energies from the samples of each band
+energies = scfilter.calc_chan_energies(output)
+
+plt.figure()
+plt.semilogx(sfi.CHIP_DFLT_FC, energies, marker='o')
+plt.xlabel('fc (Hz)')
+plt.ylabel('Energy')
+plt.show()
+```
+
+
+![svg](demo_files/demo_23_0.svg)
 
