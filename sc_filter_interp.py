@@ -21,12 +21,13 @@ class SCFilter:
 
     # TODO: make over_samp a vector so different over_sampling values can be used depending on fc.
 
-    def __init__(self, fs, n_input_samps, fc=CHIP_DFLT_FC, fbw=CHIP_DFLT_FBW, k=None, over_samp=10):
+    def __init__(self, fs, n_input_samps=None, fc=CHIP_DFLT_FC, fbw=CHIP_DFLT_FBW, k=None, over_samp=10):
         """Waken-AI switched-capacitor analog front-end model using interpolation for sampling.
 
         Args:
             fs (float): Sample rate of input signals to be filtered.
-            n_input_samps (int): Length of input signal vectors.
+            n_input_samps (int): Length of input signal vectors. Used to pre-calculate certian quantities for speed. Defaults
+                to None. Even if set, you are not required to always use the same n_input_samps. See Note below.
             fc (ndarray, optional): Array of bandpass center frequencies (Hz). One for each filter channel. Use CHIP_DFLT_FC
             for the default ERB spacing.
             fbw (ndarray, optional): Filter bandwidths (Hz). One for each filter channel. Either fbw or k must be specified as
@@ -178,10 +179,12 @@ class SCFilter:
 
         self._filter_coeffs = [self._calc_filter_coeffs(fc, k) for fc, k in zip(self.fc, self.k)]
 
-        self._n_input_samps = n_input_samps
-
-        # get templates depending on the length of the signal (n_input_samps)
-        self._calc_lengths_templates()
+        if n_input_samps is None:
+            self._n_input_samps = 0
+        else:
+            self._n_input_samps = n_input_samps
+            # get templates depending on the length of the signal (n_input_samps)
+            self._calc_lengths_templates()
         
 
     def __call__(self, signal, out_type='samples'):
@@ -199,10 +202,10 @@ class SCFilter:
                 same number of samples for each channel. 
 
         Returns:
-            ndarray: 2-D array where each row is an output signal corresponding to a filter channel
-                in the order that the fc vector is specified during initialization - [channel, out_signal]
-                Note that even if there is only a single filter channel, a 2-D array is returned with
-                shape (1, len(signal)). 
+            list (array-like): list where each element is an output signal corresponding to a filter channel
+                in the order that the fc vector is specified during initialization - [channel][out_signal]
+                Note that even if there is only a single filter channel, a list is returned with
+                a single element. 
         """
 
         # check for correct out_type parameter
@@ -541,9 +544,9 @@ class SCFilter:
             state_out_samps.append(sampled_outputs)
 
         # scale the templates with the upsampled signals
-        output = np.array([self._scale_add_templates(sampled_outputs, sampled_inputs, out_filter_templates, state_idx, num_samps_fc) \
+        output = [self._scale_add_templates(sampled_outputs, sampled_inputs, out_filter_templates, state_idx, num_samps_fc) \
             for sampled_outputs, sampled_inputs, out_filter_templates, state_idx, num_samps_fc \
-                in zip(state_out_samps, samps, self._out_filter_templates, self._state_idx, self._num_samps_fc)])
+                in zip(state_out_samps, samps, self._out_filter_templates, self._state_idx, self._num_samps_fc)]
 
         return output, self._t_vec_out
 

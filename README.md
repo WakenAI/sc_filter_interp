@@ -22,13 +22,19 @@ t_vec = np.arange(0, 1, 1/fs)
 signal = np.cos(2*np.pi*(310.)*t_vec)
 
 # initilaize filter for this sample rate and with (32-channel) default center frequencies and bandwidths
-scfilter = sfi.SCFilter(fs, len(t_vec), fc=sfi.CHIP_DFLT_FC, fbw=sfi.CHIP_DFLT_FBW)
+scfilter = sfi.SCFilter(fs, fc=sfi.CHIP_DFLT_FC, fbw=sfi.CHIP_DFLT_FBW)
 output, t_vec_out = scfilter(signal)
 
 plt.figure()
 [plt.plot(t, out) for t, out in zip(t_vec_out, output)]
+plt.xlabel('Time (s)')
+plt.ylabel('Amplitude')
 plt.show()
 ```
+
+
+![svg](demo_files/demo_3_0.svg)
+
 
 ---
 ## Theory
@@ -237,7 +243,7 @@ output, t_vec_out = scfilter(signal, out_type='raw')
 %timeit out_sampled, t_sampled = scfilter.sample_sig_chans(output, interp_kind='linear')
 ```
 
-    115 ms ± 15.9 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
+    122 ms ± 6.74 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
     
 
 
@@ -246,7 +252,7 @@ output, t_vec_out = scfilter(signal, out_type='raw')
 %timeit out_sampled, t_sampled = scfilter.sample_sig_chans(output, interp_kind='cubic')
 ```
 
-    2.04 s ± 98.9 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    2.82 s ± 191 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
     
 
 The model can also be used to make something similar to a power spectrum or fft. The method `calc_chan_energies` does this by computing the mean-square values of each of the channels. This essentially tells you the signal energy in each channel. This function may be used to compute, for example a spectrogram. Recall that due to aliasing artifacts, even if a single tone is present in one band, it will show up in other bands. The energy may be computed on the raw signal or on the sampled signal.
