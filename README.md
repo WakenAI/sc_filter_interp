@@ -243,7 +243,7 @@ output, t_vec_out = scfilter(signal, out_type='raw')
 %timeit out_sampled, t_sampled = scfilter.sample_sig_chans(output, interp_kind='linear')
 ```
 
-    122 ms ± 6.74 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
+    118 ms ± 15.6 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
     
 
 
@@ -252,7 +252,7 @@ output, t_vec_out = scfilter(signal, out_type='raw')
 %timeit out_sampled, t_sampled = scfilter.sample_sig_chans(output, interp_kind='cubic')
 ```
 
-    2.82 s ± 191 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    2.18 s ± 237 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
     
 
 The model can also be used to make something similar to a power spectrum or fft. The method `calc_chan_energies` does this by computing the mean-square values of each of the channels. This essentially tells you the signal energy in each channel. This function may be used to compute, for example a spectrogram. Recall that due to aliasing artifacts, even if a single tone is present in one band, it will show up in other bands. The energy may be computed on the raw signal or on the sampled signal.
@@ -281,4 +281,57 @@ plt.show()
 
 
 ![svg](demo_files/demo_23_0.svg)
+
+
+---
+## Creating an Analog Spectrogram
+
+You can use the the model to create something very similar to a spectrogram. When creating a conventional spectrogram from a sampled digital signal, you take sequential windowed FFTs of the input signal with some hop size. For each FFT the magnitude is taken (or squared magnitude) and the phase information discarded. Since the filterbank already gives you the signals within the specified bands (frequency ranges), we need not take an FFT. Instead, we will still apply a sliding window to the output of each filter channel with the specified hop size. Using Parseval's Theorm, we can take the squared sum of the samples within each window, to get an estimated energy within that window for that particular channel. This procedure will effectively give us an output that looks simlar to a spectrogram. 
+
+
+```python
+# function that takes a list of the channel signals (must all be the same length) 
+# and computes something simlar to a spectrogram.
+def analog2spectrogram(channels, win_len, hop_len):
+    
+    # if win_len % 2 == 0:
+    #     raise ValueError(f'win_len must be odd.')
+    window = np.hanning(win_len)
+    # window needs to be squared since we are taking sum of windowed squares
+    window = np.power(window, 2)
+    spectrogram = []
+    for chan in channels:
+        chan = np.power(chan, 2)
+        # convolving gives us the windows sum of squares at each sample
+        sum_sq = np.convolve(chan, window)
+        # downsample based on hop_len
+        spectrogram.append(sum_sq[::hop_len])
+    # convert to dB
+    spectrogram = 10*np.log10(np.array(spectrogram))
+    return spectrogram
+
+# test signal
+fs = 16000.
+fsig = 310.
+t_vec = np.arange(0, 1, 1/fs)
+signal = np.cos(2*np.pi*(fsig)*t_vec)
+
+# filter bank object
+scfilter = sfi.SCFilter(fs, len(t_vec))
+# default output gives us 32 channels at 1K samples per second
+output, _ = scfilter(signal)
+
+# get spectrogram approximation (50% overlap)
+spectrogram = analog2spectrogram(output, 20, 10)
+
+plt.figure(figsize=(2*6.4, 2*4.8))
+plt.imshow(spectrogram, origin='lower')
+plt.xlabel('Time (s)')
+plt.ylabel('Channel')
+plt.show()
+
+```
+
+
+![svg](demo_files/demo_26_0.svg)
 
