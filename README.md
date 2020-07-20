@@ -104,6 +104,22 @@ The output is a 10 Hz tone because the bandpass filter was centered at 300 Hz, a
 
 What would happen if the input signal was a tone of 300 Hz - the same as the center frequency of the filter?
 
+
+```python
+signal = np.cos(2*np.pi*(300.)*t_vec)
+output, t_vec_out = scfilter(signal)
+
+plt.figure()
+plt.plot(t_vec_out[0], output[0])
+plt.xlabel('Time (s)')
+plt.ylabel('Amplitude')
+plt.show()
+```
+
+
+![svg](demo_files/demo_11_0.svg)
+
+
 The output signal is "DC" - a 0 Hz tone, since 300 Hz - 300 Hz = 0 Hz. There is high frequency content, but the dominant signal is 0 Hz. Note that the output also ramps up to the value. This is due to the causality of the filter and the assumption that the signal before time t = 0, is 0.
 
 Recall that we because the demodulation is not perfect, signal content can end up in other filter channels. Consider the case where we have two filter channels: A 300 Hz channel, and a subharmonic, 300 Hz / 3 = 100 Hz.  
@@ -133,7 +149,7 @@ plt.show()
 ```
 
 
-![svg](demo_files/demo_12_0.svg)
+![svg](demo_files/demo_13_0.svg)
 
 
 In this case, we see that a smaller componenent of the 10 Hz tone still appears at the output of this channel. Despite these aliases in different channels, the hypothesis is, that for inference based systems, these types of non-idealities have little effect on accuracy when the non-idealities are accounted for during training.
@@ -179,7 +195,7 @@ plt.show()
     
 
 
-![svg](demo_files/demo_14_1.svg)
+![svg](demo_files/demo_15_1.svg)
 
 
 ---
@@ -243,7 +259,7 @@ output, t_vec_out = scfilter(signal, out_type='raw')
 %timeit out_sampled, t_sampled = scfilter.sample_sig_chans(output, interp_kind='linear')
 ```
 
-    118 ms ± 15.6 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
+    199 ms ± 15.6 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
     
 
 
@@ -252,7 +268,7 @@ output, t_vec_out = scfilter(signal, out_type='raw')
 %timeit out_sampled, t_sampled = scfilter.sample_sig_chans(output, interp_kind='cubic')
 ```
 
-    2.18 s ± 237 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    2.59 s ± 648 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
     
 
 The model can also be used to make something similar to a power spectrum or fft. The method `calc_chan_energies` does this by computing the mean-square values of each of the channels. This essentially tells you the signal energy in each channel. This function may be used to compute, for example a spectrogram. Recall that due to aliasing artifacts, even if a single tone is present in one band, it will show up in other bands. The energy may be computed on the raw signal or on the sampled signal.
@@ -280,7 +296,7 @@ plt.show()
 ```
 
 
-![svg](demo_files/demo_23_0.svg)
+![svg](demo_files/demo_24_0.svg)
 
 
 ---
@@ -333,5 +349,5 @@ plt.show()
 ```
 
 
-![svg](demo_files/demo_26_0.svg)
+![svg](demo_files/demo_27_0.svg)
 
