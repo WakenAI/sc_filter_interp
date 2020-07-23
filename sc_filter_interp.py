@@ -529,7 +529,7 @@ class SCFilter:
         t_samp = [np.linspace(t_off, t_off+n_samp/smpl_rate, n_samp, endpoint=False) for smpl_rate, t_off, n_samp in zip(fc, offset, n_samps)]
 
         # interpolation function
-        sig_samples = interp1d(t_vec, signal, kind='cubic', assume_sorted=True)
+        sig_samples = interp1d(t_vec, signal, kind='cubic', assume_sorted=True, fill_value="extrapolate")
 
         # # when interpolating, assemple t_samp into one long vector for speed
         # samps = sig_samples(np.concatenate(t_samp))
@@ -657,14 +657,14 @@ class SCFilter:
         if interp_kind == 'mixed':
             num_cube = np.round(len(sig_chans)*split)
             for ind in range(int(num_cube)):
-                sig_samples = interp1d(self._t_vec_out[ind], sig_chans[ind], kind='cubic')
+                sig_samples = interp1d(self._t_vec_out[ind], sig_chans[ind], kind='cubic', fill_value="extrapolate")
                 chan_samps.append(sig_samples(t_chan_samps[ind]))
             for ind in np.arange(num_cube, len(sig_chans), dtype=int):
-                sig_samples = interp1d(self._t_vec_out[ind], sig_chans[ind], kind='linear')
+                sig_samples = interp1d(self._t_vec_out[ind], sig_chans[ind], kind='linear', fill_value="extrapolate")
                 chan_samps.append(sig_samples(t_chan_samps[ind]))
         else:
             for t_chan, sig_chan, t_interp_pts in zip(self._t_vec_out, sig_chans, t_chan_samps):
-                sig_samples = interp1d(t_chan, sig_chan, kind=kind, assume_sorted=True)
+                sig_samples = interp1d(t_chan, sig_chan, kind=kind, assume_sorted=True, fill_value="extrapolate")
                 chan_samps.append(sig_samples(t_interp_pts))
 
         return chan_samps, t_chan_samps
