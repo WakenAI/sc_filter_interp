@@ -17,6 +17,8 @@ CHIP_DFLT_FBW = 3*CHIP_DFLT_FC/np.pi*4*CHIP_DFLT_K
 
 CHIP_DFLT_FBB = 15e3*4.2e-12/(2*np.pi*8*4.2e-12)
 
+DFLT_F_CHAN = 1000
+
 class SCFilter:
 
     # TODO: make over_samp a vector so different over_sampling values can be used depending on fc.
@@ -222,10 +224,44 @@ class SCFilter:
 
         if out_type == 'samples':
             sig_chans, t_vec_out = \
-                self.sample_sig_chans(sig_chans, f_chan=1000., t_start=0., num_samp_kind='max-same', interp_kind='linear')
+                self.sample_sig_chans(sig_chans, f_chan=DFLT_F_CHAN, t_start=0., num_samp_kind='max-same', interp_kind='linear')
 
         return sig_chans, t_vec_out
 
+    # TODO: Meant to replace __call__. Review and act.
+    def band_data(self, signal, f_chan=DFLT_F_CHAN, t_start=0., num_samp_kind='max-same',
+                  interp_kind='linear', split=0.5):
+        """Filter signal through SCFilter filter bank.
+
+        Args:
+            signal (ndarray): 1-D array signal input with sampling rate, fs as specified during
+                initialization. The signal need not be n_input_samps long, but this results in
+                some extra computation.
+
+        For description of other args, see sample_sig_chans method
+
+        Returns:
+            list (array-like): list where each element is an output signal corresponding to a filter channel
+                in the order that the fc vector is specified during initialization - [channel][out_signal]
+                Note that even if there is only a single filter channel, a list is returned with
+                a single element.
+        """
+
+        # check if length of signal matches what we expect. If not, update templates accordingly.
+        if len(signal) != self._n_input_samps:
+            self._n_input_samps = len(signal)
+            self._calc_lengths_templates()
+
+        sig_chans, t_vec_out = self._filter_signal(signal)
+
+        if isinstance(f_chan, int):
+            sig_chans, t_vec_out = \
+                self.sample_sig_chans(sig_chans, f_chan=f_chan, t_start=t_start, num_samp_kind=num_samp_kind,
+                                      interp_kind=interp_kind, split=split)
+        else:
+            assert f_chan is None, "Only integers or None (for 'raw' signal) are supported at this point"
+
+        return sig_chans, t_vec_out
 
     def _calc_lengths_templates(self):
         # time points of input waveform
@@ -563,7 +599,7 @@ class SCFilter:
         # mean square value of each channel
         return np.array([np.mean(np.power(chan, 2)) for chan in sig_chans])
 
-    def sample_sig_chans(self, sig_chans, f_chan=1000., t_start=0., num_samp_kind='max-same', interp_kind='linear', split=0.5):
+    def sample_sig_chans(self, sig_chans, f_chan=DFLT_F_CHAN, t_start=0., num_samp_kind='max-same', interp_kind='linear', split=0.5):
         """Mimic ADC sampling of analog filter channels in round-robin (one channel at a time) sampling.
 
         Args:
