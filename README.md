@@ -183,14 +183,13 @@ plt.show()
      7083.33333333 8500.        ] 
     
     Chip default channel bandwidths:
-    [2.25469503e+02 3.75782504e+02 6.14916826e+02 1.35281702e+03
-     1.84475048e+03 3.00626004e+03 4.05845105e+03 6.14916826e+03
-     7.24723402e+03 9.83866921e+03 1.21753531e+04 1.47580038e+04
-     1.62338042e+04 2.10438203e+04 2.58265067e+04 2.84091573e+04
-     3.44353422e+04 3.78788765e+04 4.20876405e+04 5.41126807e+04
-     6.49352168e+04 7.21502409e+04 8.11690210e+04 9.27645954e+04
-     1.08225361e+05 1.18064031e+05 1.29870434e+05 1.44300482e+05
-     1.62338042e+05 1.85529191e+05 2.16450723e+05 2.59740867e+05] 
+    [  3.52296098   5.87160163   9.6080754    9.39456261  12.8107672
+      11.74320327  15.85332441  15.37292064  18.11808504  17.08102293
+      21.13776588  25.6215344   28.18368784  26.84160747  32.9419728
+      36.23617008  43.9226304   48.31489344  53.68321493  52.8444147
+      63.41329764  70.4592196   79.26662205  90.5904252  105.6888294
+     115.2969048  126.82659528 140.9184392  158.5332441  181.18085039
+     211.37765879 253.65319055] 
     
     
 
@@ -259,7 +258,7 @@ output, t_vec_out = scfilter(signal, out_type='raw')
 %timeit out_sampled, t_sampled = scfilter.sample_sig_chans(output, interp_kind='linear')
 ```
 
-    199 ms ± 15.6 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    150 ms ± 14.8 ms per loop (mean ± std. dev. of 7 runs, 10 loops each)
     
 
 
@@ -268,7 +267,7 @@ output, t_vec_out = scfilter(signal, out_type='raw')
 %timeit out_sampled, t_sampled = scfilter.sample_sig_chans(output, interp_kind='cubic')
 ```
 
-    2.59 s ± 648 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
+    2.21 s ± 340 ms per loop (mean ± std. dev. of 7 runs, 1 loop each)
     
 
 The model can also be used to make something similar to a power spectrum or fft. The method `calc_chan_energies` does this by computing the mean-square values of each of the channels. This essentially tells you the signal energy in each channel. This function may be used to compute, for example a spectrogram. Recall that due to aliasing artifacts, even if a single tone is present in one band, it will show up in other bands. The energy may be computed on the raw signal or on the sampled signal.

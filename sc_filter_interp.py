@@ -13,7 +13,7 @@ CHIP_DFLT_FC = np.array([29.51388889,   49.18981481,   80.49242424,   118.055555
 
 CHIP_DFLT_K = np.array([2, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8])
 
-CHIP_DFLT_FBW = 3*CHIP_DFLT_FC/np.pi*4*CHIP_DFLT_K
+CHIP_DFLT_FBW = 3*CHIP_DFLT_FC/(np.pi*4*CHIP_DFLT_K)
 
 CHIP_DFLT_FBB = 15e3*4.2e-12/(2*np.pi*8*4.2e-12)
 
