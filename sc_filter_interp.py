@@ -189,47 +189,7 @@ class SCFilter:
             self._calc_lengths_templates()
         
 
-    def __call__(self, signal, out_type='samples'):
-        """Filter signal through SCFilter filter bank.
-
-        Args:
-            signal (ndarray): 1-D array signal input with sampling rate, fs as specified during 
-                initialization. The signal need not be n_input_samps long, but this results in 
-                some extra computation.
-            out_type ({'raw', 'samples'}): If 'samples' returns the output of each channel as if sampled by
-                an ADC in round-robin fasion (one channel at a time) using the default parameters of
-                SCFilter.sample_sig_chans(sig_chans, f_chan=1000., t_start=0., num_samp_kind='max-same', interp_kind='linear', split=0.5)
-                If 'raw' returns the up-sampled analog approximation for each channel dictated by the over_samp
-                value set during initialization. Defaults to 'samples' which samples at 1 kHz and returns the
-                same number of samples for each channel. 
-
-        Returns:
-            list (array-like): list where each element is an output signal corresponding to a filter channel
-                in the order that the fc vector is specified during initialization - [channel][out_signal]
-                Note that even if there is only a single filter channel, a list is returned with
-                a single element. 
-        """
-
-        # check for correct out_type parameter
-        out_types = {'raw', 'samples'}
-        if out_type not in out_types:
-            raise ValueError(f'out_type must be one of {out_types}')
-        
-        # check if length of signal matches what we expect. If not, update templates accordingly.
-        if len(signal) != self._n_input_samps:
-            self._n_input_samps = len(signal)
-            self._calc_lengths_templates()
-
-        sig_chans, t_vec_out = self._filter_signal(signal)
-
-        if out_type == 'samples':
-            sig_chans, t_vec_out = \
-                self.sample_sig_chans(sig_chans, f_chan=DFLT_F_CHAN, t_start=0., num_samp_kind='max-same', interp_kind='linear')
-
-        return sig_chans, t_vec_out
-
-    # TODO: Meant to replace __call__. Review and act.
-    def band_data(self, signal, f_chan=DFLT_F_CHAN, t_start=0., num_samp_kind='max-same',
+    def filter_and_sample(self, signal, f_chan=DFLT_F_CHAN, t_start=0., num_samp_kind='max-same',
                   interp_kind='linear', split=0.5):
         """Filter signal through SCFilter filter bank.
 
@@ -237,6 +197,9 @@ class SCFilter:
             signal (ndarray): 1-D array signal input with sampling rate, fs as specified during
                 initialization. The signal need not be n_input_samps long, but this results in
                 some extra computation.
+            f_chan (float, optional): Sampling rate per channel in Hz. Because sampling is round-robin starting at sig_chans[0], 
+                the effective sampling rate for the whole filter-bank is len(sig_chans)*f_chan. Defaults to DFLT_F_CHAN = 1000..
+                If f_chan is None, then returns, raw, "analog" signal.
 
         For description of other args, see sample_sig_chans method
 
